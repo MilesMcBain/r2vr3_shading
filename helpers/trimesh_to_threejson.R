@@ -47,8 +47,8 @@ trimesh_to_threejson <- function(vertices, face_vertices,
   face_def <-
     0 +                                   # use triangular faces
     2^1 +                                 # use material for face
-    (!missing(face_vertex_colours) * 2^7) +    # use face vertex colours
-    (!missing(face_vertex_normals) * 2^5)     # use face vertex normals
+    ((!missing(face_vertex_colours)) * 2^7) +    # use face vertex colours
+    ((!missing(face_vertex_normals)) * 2^5)     # use face vertex normals
 
   threejs_json_data <-
     new.env()
@@ -91,9 +91,6 @@ trimesh_to_threejson <- function(vertices, face_vertices,
   ## colours
   if (missing(colours)){
     colours <- ""
-  }
-  if (!is.character(colours)){
-    stop("colours is not a character vector")
   }
   threejs_json_data$colors <-
     colours %>%
@@ -150,7 +147,7 @@ trimesh_to_threejson <- function(vertices, face_vertices,
 
   if(!missing(face_vertex_colours)){
     faces <-
-      paste0(faces, ", ", face_vertex_colours[, 1], ",", face_verex_colours[, 2], ",",
+      paste0(faces, ", ", face_vertex_colours[, 1], ",", face_vertex_colours[, 2], ",",
              face_vertex_colours[, 3])
   }
 

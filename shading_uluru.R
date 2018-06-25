@@ -77,14 +77,54 @@ source("./helpers/colour_from_scale.R")
 ## Our vertex heights are in
 head(uluru_bbox_trimesh$P[,3])
 
-## range of vertex heights
-z_range <- range(uluru_bbox_trimesh$P[,3])
-
-# So we use a palette function to transform to colours
+## So we use a palette function to transform to colours
 n_colours <- 256
 palette_function <- purrr::partial(scico, palette = "tokyo")
 
-colour_data <- colour_from_scale(uluru_bbox_trimesh$P[,3], palette_function, n_colours)
+colour_data <- colour_from_scale(uluru_bbox_trimesh$P[,3], palette_function,
+                                 n_colours, zero_index = TRUE)
+
+face_colours <- matrix(colour_data$indexes[uluru_bbox_trimesh$T], ncol = 3, byrow = FALSE)
+
+
+## Generate a shaded model JSON
+mesh_json <- trimesh_to_threejson(vertices = uluru_bbox_trimesh$P, face_vertices = uluru_bbox_trimesh$T, colours = colour_data$colours, face_vertex_colours = face_colours)
+
+
+## VR test.
+library(r2vr)
+
+## We need to correct the height based on ground height.
+## In this case we'll find ground height from the  highest corner of the bounding box.
+ground_height <- 
+ max(raster::extract(nt_raster, uluru_bbox_mpoly[[1]][[1]][[1]], nrow = 1))
+
+height_correction <- -1 * (ground_height - mean(uluru_bbox_trimesh$P[,3]))
+## We're reversing the correction that would have been applied to the
+## ground height by centering.
+
+## Rotated and height corrected render:
+
+scale_factor <- 0.01
+
+uluru <- a_in_mem_asset(data = mesh_json,
+                        id = "uluru",
+                        src = "./uluru_mesh.json")
+
+aframe_scene2 <-
+  a_scene(template = "basic",
+          title = "Uluru Mesh",
+          description = "An A-Frame scene of Uluru",
+          children = list(
+            a_json_model(src_asset = uluru,
+                         scale = scale_factor*c(1,1,1),
+                         position = c(0,0 + height_correction * scale_factor + 0.15,-3),
+                         rotation = c(-90, 180, 0))))
+
+aframe_scene2$serve()
+
+## don't forget to:
+aframe_scene2$stop()
 
 
 ## Task 2: Generate vertex normals
@@ -92,5 +132,4 @@ colour_data <- colour_from_scale(uluru_bbox_trimesh$P[,3], palette_function, n_c
 ## Taks 3: Use a texture
 
 ## write to JSON
-mesh_json <- trimesh_to_threejson(vertices = uluru_bbox_trimesh$P, face_vertices = uluru_bbox_trimesh$T)
 write_lines(mesh_json, "./data/uluru_mesh.json")
