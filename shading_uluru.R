@@ -67,27 +67,24 @@ library(r2vr)
 ## load JSON conversion helper function
 source("./helpers/trimesh_to_threejson.R")
 
+## load colour palette index helper function.
+source("./helpers/colour_from_scale.R")
+
 ## After prerequisite code, our mesh is now in uluru_bbox_trimesh.
 
 ## Task 1: Create a colour for each vertex from height raster
 
 ## Our vertex heights are in
-uluru_bbox_trimesh$P[,3]
+head(uluru_bbox_trimesh$P[,3])
 
 ## range of vertex heights
 z_range <- range(uluru_bbox_trimesh$P[,3])
 
-## So we use a palette function to transform to colours
-n_colours = 265
+# So we use a palette function to transform to colours
+n_colours <- 256
+palette_function <- purrr::partial(scico, palette = "tokyo")
 
-colour_from_scale <- function(vec, palette_fn, n_cols){
-  palette <- palette_fn(n_cols)
-  palette_indexes <- ceiling(((vec - min(vec))/(max(vec) - min(vec))) * n_cols)
-  palette_indexes[palette_indexes == 0] <- 1 ## adjust for values equal to the min
-  data.frame(colours = palette[palette_indexes], indexes = palette_indexes)
-}
-
-
+colour_data <- colour_from_scale(uluru_bbox_trimesh$P[,3], palette_function, n_colours)
 
 
 ## Task 2: Generate vertex normals
