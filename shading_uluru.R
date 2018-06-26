@@ -84,7 +84,7 @@ palette_function <- purrr::partial(scico, palette = "tokyo")
 colour_data <- colour_from_scale(uluru_bbox_trimesh$P[,3], palette_function,
                                  n_colours, zero_index = TRUE)
 
-face_colours <- matrix(colour_data$indexes[uluru_bbox_trimesh$T], ncol = 3, byrow = FALSE)
+face_colours <- vertex_to_face_colours(colour_data$indexes, uluru_bbox_trimesh$T)
 
 
 ## Generate a shaded model JSON
