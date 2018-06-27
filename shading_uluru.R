@@ -62,6 +62,7 @@ uluru_bbox_trimesh$P <-
 
 ## install r2vr using devtools
 install_github('milesmcbain/r2vr')
+
 library(r2vr)
 
 ## load JSON conversion helper function
@@ -70,29 +71,29 @@ source("./helpers/trimesh_to_threejson.R")
 ## load colour palette index helper function.
 source("./helpers/colour_from_scale.R")
 
+## load vertex to face colour conversion
+source("./helpers/vertex_to_face_colours.R")
+
 ## After prerequisite code, our mesh is now in uluru_bbox_trimesh.
 
 ## Task 1: Create a colour for each vertex from height raster
 
 ## Our vertex heights are in
-head(uluru_bbox_trimesh$P[,3])
+## head(uluru_bbox_trimesh$P[,3])
 
 ## So we use a palette function to transform to colours
 n_colours <- 256
 palette_function <- purrr::partial(scico, palette = "tokyo")
 
-colour_data <- colour_from_scale(uluru_bbox_trimesh$P[,3], palette_function,
+vertex_colour_data <- colour_from_scale(uluru_bbox_trimesh$P[,3], palette_function,
                                  n_colours, zero_index = TRUE)
 
-face_colours <- vertex_to_face_colours(colour_data$indexes, uluru_bbox_trimesh$T)
+face_colours <- vertex_to_face_colours(vertex_colour_data$indexes, uluru_bbox_trimesh$T)
 
 
 ## Generate a shaded model JSON
-mesh_json <- trimesh_to_threejson(vertices = uluru_bbox_trimesh$P, face_vertices = uluru_bbox_trimesh$T, colours = colour_data$colours, face_vertex_colours = face_colours)
+mesh_json <- trimesh_to_threejson(vertices = uluru_bbox_trimesh$P, face_vertices = uluru_bbox_trimesh$T, colours = vertex_colour_data$colours, face_vertex_colours = face_colours)
 
-
-## VR test.
-library(r2vr)
 
 ## We need to correct the height based on ground height.
 ## In this case we'll find ground height from the  highest corner of the bounding box.
@@ -107,27 +108,58 @@ height_correction <- -1 * (ground_height - mean(uluru_bbox_trimesh$P[,3]))
 
 scale_factor <- 0.01
 
-uluru <- a_in_mem_asset(data = mesh_json,
-                        id = "uluru",
-                        src = "./uluru_mesh.json")
+uluru_json <-
+  a_in_mem_asset(data = mesh_json,
+                 id = "uluru",
+                 src = "./uluru_mesh.json")
+
+uluru <-
+  a_json_model(src_asset = uluru_json,
+               id = "rock",
+               scale = scale_factor*c(1,1,1),
+               position = c(0,0 + height_correction * scale_factor,-15),
+               rotation = c(-90, 180, 0)
+               )
+
+sky <- a_entity(tag = "sky",
+                color = "#000000")
 
 aframe_scene2 <-
-  a_scene(template = "basic",
+  a_scene(template = "empty",
           title = "Uluru Mesh",
           description = "An A-Frame scene of Uluru",
-          children = list(
-            a_json_model(src_asset = uluru,
-                         scale = scale_factor*c(1,1,1),
-                         position = c(0,0 + height_correction * scale_factor + 0.15,-3),
-                         rotation = c(-90, 180, 0))))
+          children = list(uluru, sky))
 
 aframe_scene2$serve()
+browseURL("http://127.0.0.1:8080")
 
 ## don't forget to:
 aframe_scene2$stop()
 
 
 ## Task 2: Generate vertex normals
+
+## Option 1 turn on normals in threejs using
+## https://github.com/donmccurdy/aframe-extras
+
+uluru <-
+  a_json_model(src_asset = uluru_json,
+               scale = scale_factor*c(1,1,1),
+               position = c(0,0 + height_correction * scale_factor, -15),
+               rotation = c(-90, 180, 0),
+               mesh_smooth = TRUE)
+
+aframe_scene2 <-
+  a_scene(template = "empty",
+          title = "Uluru Mesh",
+          description = "An A-Frame scene of Uluru",
+          children = list(uluru, sky))
+
+aframe_scene2$serve()
+
+## don't forget to:
+aframe_scene2$stop()
+
 
 ## Taks 3: Use a texture
 
