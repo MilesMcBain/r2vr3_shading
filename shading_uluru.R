@@ -144,10 +144,10 @@ aframe_scene2$stop()
 
 uluru <-
   a_json_model(src_asset = uluru_json,
+               mesh_smooth = TRUE,
                scale = scale_factor*c(1,1,1),
                position = c(0,0 + height_correction * scale_factor, -15),
-               rotation = c(-90, 180, 0),
-               mesh_smooth = TRUE)
+               rotation = c(-90, 180, 0))
 
 aframe_scene2 <-
   a_scene(template = "empty",
@@ -162,6 +162,14 @@ aframe_scene2$stop()
 
 
 ## Taks 3: Use a texture
+## Fetch a satellite texture tile from Mapbox
+mapbox_token <- Sys.getenv('mapbox_token')
+library(httr)
+
+## determine tile to request
+## top left of our bounding box
+
+
 
 ## write to JSON
 write_lines(mesh_json, "./data/uluru_mesh.json")
