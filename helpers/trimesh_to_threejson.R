@@ -13,7 +13,8 @@
 ##' @author Miles McBain
 trimesh_to_threejson <- function(vertices, face_vertices,
                                  colours, face_vertex_colours,
-                                 normals, face_vertex_normals) {
+                                 normals, face_vertex_normals,
+                                 vertex_uvs, texture_file) {
 
  ## format from: https://github.com/mrdoob/three.js/wiki/JSON-Model-format-3
  json_template <- '{
@@ -25,6 +26,7 @@ trimesh_to_threejson <- function(vertices, face_vertices,
       "blending": "NormalBlending",
       "colorDiffuse": [1, 1, 1],
       "colorSpecular": [1, 1, 1],
+      ${texture_map}
       "depthTest": true,
       "depthWrite": true,
       "shading": "Phong",
@@ -42,6 +44,9 @@ trimesh_to_threejson <- function(vertices, face_vertices,
 
   ## we are just using a single material
   material_ind <- 0
+
+  ## we are just using a single texture map
+  uv_map_ind <- 0
 
   ## calculate face definition byte
   face_def <-
@@ -116,9 +121,23 @@ trimesh_to_threejson <- function(vertices, face_vertices,
   threejs_json_data$normals <- normals
 
   ## uvs
-  ## No support for textures and texture coordinates for now.
   threejs_json_data$uvs <- ""
+  if (!missing(vertex_uvs)){
+    if ((!is.matrix(vertex_uvs) || (nrow(vertices) != nrow(vertex_uvs)) ||
+         (ncol(vertex_uvs) != 2) || missing(texture_file))
+        ){
+      stop("vertex_uvs is needs to be a 2 column matrix of the same length as vertices supplied with an image in texture_file")
+    } else {
+      ## looking good, set up the uvs.
+      uv_vector <- paste0("[",
+                          paste0(vertex_uvs[,1], ",", vertex_uvs[,2], collapse = ", "),
+                          "]")
+    }
+    threejs_json_data$uvs <- uv_vector
 
+    ## from https://stackoverflow.com/questions/14872502/jsonloader-with-texture
+    threejs_json_data$texture_map <- paste0("mapDiffuse: \"", texture_file, "\",")
+  }
 
   if (!missing(face_vertex_colours) &&
       (!is.matrix(face_vertex_colours) || (nrow(face_vertex_colours) != nrow(face_vertices)))
@@ -137,7 +156,16 @@ trimesh_to_threejson <- function(vertices, face_vertices,
   ## of vectorised paste0()
   faces <-
     paste0(face_def, ", ", face_vertices[, 1], ",", face_vertices[, 2], ",",
-           face_vertices[, 3], ", ", material_ind)
+           face_vertices[, 3], ", ", material_ind,
+           ifelse(!missing(vertex_uvs), paste0(", ",uv_map_ind), NULL))
+
+  if(!missing(vertex_uvs)){
+    ## The uv's have the same dimension as vertices, since we assume each vertex
+    ## has a unique texture coordinate.
+    faces <-
+      paste0(faces, face_vertices[, 1], ",", face_vertices[, 2], ",",
+    face_vertices[, 3])
+  }
 
   if(!missing(face_vertex_normals)){
     faces <-

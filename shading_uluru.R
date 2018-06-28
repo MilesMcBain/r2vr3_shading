@@ -38,10 +38,12 @@ nt_raster <- raster("./data/ELVIS_CLIP.tif")
 uluru_bbox_mpoly <-
   st_transform(uluru_bbox_mpoly, crs = crs(nt_raster)@projargs)
 
-### Plot cropped raster for sanity check
-nt_raster %>%
-  crop(st_bbox(uluru_bbox_mpoly)[c("xmin","xmax","ymin","ymax")]) %>%
-  plot() ## looks good!
+### Crop raster and sanity check
+nt_raster_cropped <-
+  nt_raster %>%
+  crop(st_bbox(uluru_bbox_mpoly)[c("xmin","xmax","ymin","ymax")])
+
+## plot(nt_raster_cropped) ## looks good!
 
 ### Triangulate bbox
 uluru_bbox_trimesh <-
@@ -61,7 +63,7 @@ uluru_bbox_trimesh$P <-
 ################################################################################
 
 ## install r2vr using devtools
-install_github('milesmcbain/r2vr')
+##install_github('milesmcbain/r2vr')
 
 library(r2vr)
 
@@ -136,7 +138,6 @@ browseURL("http://127.0.0.1:8080")
 ## don't forget to:
 aframe_scene2$stop()
 
-
 ## Task 2: Generate vertex normals
 
 ## Option 1 turn on normals in threejs using
@@ -162,9 +163,41 @@ aframe_scene2$stop()
 
 
 ## Taks 3: Use a texture
-## Fetch a satellite texture tile from Mapbox
-mapbox_token <- Sys.getenv('mapbox_token')
-library(httr)
+library(dismo)
+
+## there are better ways to get imagery, but this is a good old faithful detault
+im <- dismo::gmap(nt_raster_cropped, type = "satellite", scale = 2)
+
+## so this is a bit head-stretching, because multiple coordinate systems in play
+
+## we want the [0,1,0,1] coordinates of the image in terms of the geographic mesh
+## 1) mesh is lcc, backwards to longlat WGS84
+xyl <- rgdal::project(uluru_bbox_trimesh$P[,1:2], projection(nt_raster), inv = TRUE)
+
+## 2) image is merc, forwards to that
+xym <- rgdal::project(xyl, projection(im))
+
+## 3) the cell (in [0,1,0,1]) for our mesh coordinates
+cell <- cellFromXY(im, xym)
+
+## 4) use that cell to get native from a rescaled im
+xyim <- xyFromCell(setExtent(im, extent(0, 1, 0, 1)), cell)
+
+## 5) convert to RGB from palette (might be a raster fun for this...)
+imrgb <- setValues(brick(im, im, im), t(col2rgb(im@legend@colortable[values(im) + 1])))
+
+## 6) write to PNG (that's the only way we can texture map)
+texfile <- sprintf("%s.png", tempfile())
+rgdal::writeGDAL(as(imrgb, "SpatialGridDataFrame"), texfile, driver = "PNG")
+
+
+## clear plot if need be
+## rgl.clear()
+
+## finally, plot the mesh as filled triangles and specify the texture mapping
+## (it has to not be col = "black", which is the default )
+shade3d(tri, texcoords = xyim[tri$it, ], texture = texfile, col = "white")
+rglwidget()
 
 ## determine tile to request
 ## top left of our bounding box
