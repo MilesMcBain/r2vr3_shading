@@ -214,7 +214,7 @@ uluru_tex <- a_in_mem_asset(data = list(uluru_tex_json, readr::read_file_raw(tex
 
 uluru <-
   a_json_model(src_asset = uluru_tex,
-               mesh_smooth = FALSE,
+               mesh_smooth = TRUE,
                scale = scale_factor*c(1,1,1),
                position = c(0,0 + height_correction * scale_factor, -15),
                rotation = c(-90, 180, 0))
