@@ -9,6 +9,8 @@
 ##' @param face_vertex_colours a matrix with 3 columns of face vertex colour indicies in `colours`, each row corresponds to a face in `face_vertices`. Row 1, column 1 is the colour index of vertex 1 in face 1.
 ##' @param normals a 3 column matrix of normal vectors in x, y, z space.
 ##' @param face_vertex_normals a matrix with 3 columns of face vertex normal indicies in `normals`, each row corresponds to a face in `face_vertices`. Row 1, column 1 is the normal index of vertex 1 in face 1.
+##' @param vertex_uvs A 2 column matrix of texture coordinates, the same length as `vertices`.
+##' @param texture_file An path to an image file.
 ##' @return JSON describing the mesh.
 ##' @author Miles McBain
 trimesh_to_threejson <- function(vertices, face_vertices,
@@ -45,15 +47,13 @@ trimesh_to_threejson <- function(vertices, face_vertices,
   ## we are just using a single material
   material_ind <- 0
 
-  ## we are just using a single texture map
-  uv_map_ind <- 0
-
   ## calculate face definition byte
   face_def <-
     0 +                                   # use triangular faces
     2^1 +                                 # use material for face
     ((!missing(face_vertex_colours)) * 2^7) +    # use face vertex colours
-    ((!missing(face_vertex_normals)) * 2^5)     # use face vertex normals
+    ((!missing(face_vertex_normals)) * 2^5) +    # use face vertex normals
+    ((!missing(vertex_uvs)) * 2^3)      # use face vertex uv
 
   threejs_json_data <-
     new.env()
@@ -122,6 +122,7 @@ trimesh_to_threejson <- function(vertices, face_vertices,
 
   ## uvs
   threejs_json_data$uvs <- ""
+  threejs_json_data$texture_map <- ""
   if (!missing(vertex_uvs)){
     if ((!is.matrix(vertex_uvs) || (nrow(vertices) != nrow(vertex_uvs)) ||
          (ncol(vertex_uvs) != 2) || missing(texture_file))
@@ -136,7 +137,7 @@ trimesh_to_threejson <- function(vertices, face_vertices,
     threejs_json_data$uvs <- uv_vector
 
     ## from https://stackoverflow.com/questions/14872502/jsonloader-with-texture
-    threejs_json_data$texture_map <- paste0("mapDiffuse: \"", texture_file, "\",")
+    threejs_json_data$texture_map <- paste0("\"mapDiffuse\": \"", texture_file, "\",")
   }
 
   if (!missing(face_vertex_colours) &&
@@ -156,14 +157,13 @@ trimesh_to_threejson <- function(vertices, face_vertices,
   ## of vectorised paste0()
   faces <-
     paste0(face_def, ", ", face_vertices[, 1], ",", face_vertices[, 2], ",",
-           face_vertices[, 3], ", ", material_ind,
-           ifelse(!missing(vertex_uvs), paste0(", ",uv_map_ind), NULL))
+           face_vertices[, 3], ", ", material_ind)
 
   if(!missing(vertex_uvs)){
     ## The uv's have the same dimension as vertices, since we assume each vertex
     ## has a unique texture coordinate.
     faces <-
-      paste0(faces, face_vertices[, 1], ",", face_vertices[, 2], ",",
+      paste0(faces,", ", face_vertices[, 1], ",", face_vertices[, 2], ",",
     face_vertices[, 3])
   }
 

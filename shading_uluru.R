@@ -94,7 +94,11 @@ face_colours <- vertex_to_face_colours(vertex_colour_data$indexes, uluru_bbox_tr
 
 
 ## Generate a shaded model JSON
-mesh_json <- trimesh_to_threejson(vertices = uluru_bbox_trimesh$P, face_vertices = uluru_bbox_trimesh$T, colours = vertex_colour_data$colours, face_vertex_colours = face_colours)
+mesh_json <-
+  trimesh_to_threejson(vertices = uluru_bbox_trimesh$P,
+                       face_vertices = uluru_bbox_trimesh$T,
+                       colours = vertex_colour_data$colours,
+                       face_vertex_colours = face_colours)
 
 
 ## We need to correct the height based on ground height.
@@ -187,22 +191,41 @@ xyim <- xyFromCell(setExtent(im, extent(0, 1, 0, 1)), cell)
 imrgb <- setValues(brick(im, im, im), t(col2rgb(im@legend@colortable[values(im) + 1])))
 
 ## 6) write to PNG (that's the only way we can texture map)
-texfile <- sprintf("%s.png", tempfile())
+texfile <- "./data/uluru_satellite.png"
 rgdal::writeGDAL(as(imrgb, "SpatialGridDataFrame"), texfile, driver = "PNG")
 
-
-## clear plot if need be
-## rgl.clear()
-
-## finally, plot the mesh as filled triangles and specify the texture mapping
-## (it has to not be col = "black", which is the default )
-shade3d(tri, texcoords = xyim[tri$it, ], texture = texfile, col = "white")
-rglwidget()
-
-## determine tile to request
-## top left of our bounding box
-
-
+## generate JSON containing texture
+uluru_tex_json <-
+  trimesh_to_threejson(vertices = uluru_bbox_trimesh$P,
+                       face_vertices = uluru_bbox_trimesh$T,
+                       vertex_uvs = xyim,
+                       texture_file = texfile
+                       )
 
 ## write to JSON
-write_lines(mesh_json, "./data/uluru_mesh.json")
+write_lines(uluru_tex_json, "./data/uluru_tex_mesh.json")
+
+## VR test
+
+uluru_tex <- a_in_mem_asset(data = list(uluru_tex_json, readr::read_file_raw(texfile)),
+                            src = "./uluru_tex.json",
+                            id = "uluru_tex",
+                            parts = "./data/uluru_satellite.png")
+
+uluru <-
+  a_json_model(src_asset = uluru_tex,
+               mesh_smooth = FALSE,
+               scale = scale_factor*c(1,1,1),
+               position = c(0,0 + height_correction * scale_factor, -15),
+               rotation = c(-90, 180, 0))
+
+aframe_scene2 <-
+  a_scene(template = "empty",
+          title = "Uluru Mesh",
+          description = "An A-Frame scene of Uluru",
+          children = list(uluru, sky, a_pc_control_camera()))
+
+aframe_scene2$serve()
+
+## don't forget to:
+aframe_scene2$stop()
