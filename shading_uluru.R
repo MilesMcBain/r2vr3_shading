@@ -214,7 +214,7 @@ uluru_tex <- a_in_mem_asset(data = list(uluru_tex_json, readr::read_file_raw(tex
 
 uluru <-
   a_json_model(src_asset = uluru_tex,
-               mesh_smooth = TRUE,
+               mesh_smooth = FALSE,
                scale = scale_factor*c(1,1,1),
                position = c(0,0 + height_correction * scale_factor, -15),
                rotation = c(-90, 180, 0))
@@ -229,3 +229,37 @@ aframe_scene2$serve()
 
 ## don't forget to:
 aframe_scene2$stop()
+
+## rayshader
+## devtools::install_github("diligently/rayshader")
+library(rayshader)
+
+elmat <- matrix(nt_raster_cropped@data@values, nrow = nt_raster_cropped@ncols,
+                ncol = nt_raster_cropped@nrows)
+
+elmat %>%
+  sphere_shade(sunangle = 45, texture = "imhof2") %>%
+  add_shadow(ray_shade(elmat,sunangle = 45), max_darken = 0.4) %>%
+  add_shadow(ambient_shade(elmat), max_darken = 0.4) %>%
+  write_png(filename = "./uluru_shade.png")
+
+range_scale <- function(a) (a - min(a, na.rm=TRUE)) / diff(range(a, na.rm=TRUE))
+
+norm_vertex_coords <-
+  cbind(range_scale(uluru_bbox_trimesh$P[,1]),
+        range_scale(uluru_bbox_trimesh$P[,2]))
+
+texfile = "./uluru_shade.png"
+
+uluru_tex_json <-
+  trimesh_to_threejson(vertices = uluru_bbox_trimesh$P,
+                       face_vertices = uluru_bbox_trimesh$T,
+                       vertex_uvs = norm_vertex_coords,
+                       texture_file = texfile
+                       )
+
+
+uluru_tex <- a_in_mem_asset(data = list(uluru_tex_json, readr::read_file_raw(texfile)),
+                            src = "./uluru_tex.json",
+                            id = "uluru_tex",
+                            parts = "./uluru_shade.png")
