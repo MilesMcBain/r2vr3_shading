@@ -4,12 +4,10 @@
 ## Prerequisite code
 
 ################################################################################
-library(scico)
 library(devtools)
 library(sf)
 library(raster)
 library(tidyverse)
-library(purrr)
 source("./helpers/sf_to_trimesh.R")
 
 ### Make a tight bounding box.
@@ -43,7 +41,7 @@ nt_raster_cropped <-
   nt_raster %>%
   crop(st_bbox(uluru_bbox_mpoly)[c("xmin","xmax","ymin","ymax")])
 
-## plot(nt_raster_cropped) ## looks good!
+plot(nt_raster_cropped) ## looks good!
 
 ### Triangulate bbox
 uluru_bbox_trimesh <-
@@ -55,17 +53,29 @@ ul_extent_elev <-
 uluru_bbox_trimesh$P <-
   cbind(uluru_bbox_trimesh$P, ul_extent_elev)
 
+### Calculating height correction factor for VR, discussed in previous post.
+## We need to correct the height based on ground height.
+## In this case we'll find ground height from the  highest corner of the bounding box.
+ground_height <- 
+  max(raster::extract(nt_raster, uluru_bbox_mpoly[[1]][[1]][[1]], nrow = 1))
+
+height_correction <- -1 * (ground_height - mean(uluru_bbox_trimesh$P[,3]))
+## We're reversing the correction that would have been applied to the
+## ground height by centering.
 
 ################################################################################
 
-## Uluru Mesh to VR
+## Shading a mesh in VR
 
 ################################################################################
 
-## install r2vr using devtools
-##install_github('milesmcbain/r2vr')
+## install latest r2vr using devtools
+## install_github('milesmcbain/r2vr')
 
+library(raster)
+library(scico)
 library(r2vr)
+library(tidyverse)
 
 ## load JSON conversion helper function
 source("./helpers/trimesh_to_threejson.R")
@@ -76,22 +86,26 @@ source("./helpers/colour_from_scale.R")
 ## load vertex to face colour conversion
 source("./helpers/vertex_to_face_colours.R")
 
-## After prerequisite code, our mesh is now in uluru_bbox_trimesh.
+## Extract data from raster for each vertex
+## In this case we already have this data in uluru_bbox_trimesh$P[,3], so this
+## is just for demonstration: if you are using a raster that isn't height, that
+## will need to be done at this point.
+colouring_raster_data <-
+  raster::extract(nt_raster, uluru_bbox_trimesh$P[, 1:2])
 
-## Task 1: Create a colour for each vertex from height raster
-
-## Our vertex heights are in
-## head(uluru_bbox_trimesh$P[,3])
-
-## So we use a palette function to transform to colours
+## Choose a palette function to transform to colours
 n_colours <- 256
-palette_function <- purrr::partial(scico, palette = "tokyo")
+palette_function <-
+  purrr::partial(scico, palette = "tokyo")
 
-vertex_colour_data <- colour_from_scale(uluru_bbox_trimesh$P[,3], palette_function,
-                                 n_colours, zero_index = TRUE)
+## Generate colours
+vertex_colour_data <-
+  colour_from_scale(colouring_raster_data, palette_function,
+                    n_colours, zero_index = TRUE)
 
-face_colours <- vertex_to_face_colours(vertex_colour_data$indexes, uluru_bbox_trimesh$T)
-
+face_colours <-
+  vertex_to_face_colours(vertex_colour_data$indexes,
+                         uluru_bbox_trimesh$T)
 
 ## Generate a shaded model JSON
 mesh_json <-
@@ -100,65 +114,54 @@ mesh_json <-
                        colours = vertex_colour_data$colours,
                        face_vertex_colours = face_colours)
 
+## write JSON
+write_file(mesh_json, "./data/uluru_mesh.json")
 
-## We need to correct the height based on ground height.
-## In this case we'll find ground height from the  highest corner of the bounding box.
-ground_height <- 
- max(raster::extract(nt_raster, uluru_bbox_mpoly[[1]][[1]][[1]], nrow = 1))
-
-height_correction <- -1 * (ground_height - mean(uluru_bbox_trimesh$P[,3]))
-## We're reversing the correction that would have been applied to the
-## ground height by centering.
-
-## Rotated and height corrected render:
-
-scale_factor <- 0.01
+## Render in VR
+## Bigger than our previous 'puddle':
+scale_factor <- 0.01 
 
 uluru_json <-
-  a_in_mem_asset(data = mesh_json,
-                 id = "uluru",
-                 src = "./uluru_mesh.json")
+  a_asset(id = "uluru",
+          src = "./data/uluru_mesh.json")
 
 uluru <-
   a_json_model(src_asset = uluru_json,
-               id = "rock",
-               scale = scale_factor*c(1,1,1),
-               position = c(0,0 + height_correction * scale_factor,-15),
+               scale = scale_factor * c(1, 1, 1),
+               position = c(0, 0 + height_correction * scale_factor, -15),
                rotation = c(-90, 180, 0)
                )
 
 sky <- a_entity(tag = "sky",
                 color = "#000000")
 
-aframe_scene2 <-
+controls <- a_pc_control_camera()
+
+aframe_scene <-
   a_scene(template = "empty",
           title = "Uluru Mesh",
           description = "An A-Frame scene of Uluru",
-          children = list(uluru, sky))
+          children = list(uluru, sky, controls))
 
-aframe_scene2$serve()
+aframe_scene$serve()
 browseURL("http://127.0.0.1:8080")
 
 ## don't forget to:
-aframe_scene2$stop()
+aframe_scene$stop()
 
-## Task 2: Generate vertex normals
-
-## Option 1 turn on normals in threejs using
-## https://github.com/donmccurdy/aframe-extras
-
-uluru <-
+## Smooth using vertex normals
+uluru_smooth <-
   a_json_model(src_asset = uluru_json,
                mesh_smooth = TRUE,
-               scale = scale_factor*c(1,1,1),
-               position = c(0,0 + height_correction * scale_factor, -15),
+               scale = scale_factor * c(1, 1, 1),
+               position = c(0, 0 + height_correction * scale_factor, -15),
                rotation = c(-90, 180, 0))
 
 aframe_scene2 <-
   a_scene(template = "empty",
           title = "Uluru Mesh",
           description = "An A-Frame scene of Uluru",
-          children = list(uluru, sky))
+          children = list(uluru_smooth, sky, controls))
 
 aframe_scene2$serve()
 
@@ -166,7 +169,7 @@ aframe_scene2$serve()
 aframe_scene2$stop()
 
 
-## Taks 3: Use a texture
+### Use a texture
 library(dismo)
 
 ## there are better ways to get imagery, but this is a good old faithful detault
@@ -201,9 +204,6 @@ uluru_tex_json <-
                        vertex_uvs = xyim,
                        texture_file = texfile
                        )
-
-## write to JSON
-write_lines(uluru_tex_json, "./data/uluru_tex_mesh.json")
 
 ## VR test
 
