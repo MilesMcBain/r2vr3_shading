@@ -81,7 +81,7 @@ library(tidyverse)
 source("./helpers/trimesh_to_threejson.R")
 
 ## load colour palette index helper function.
-source("./helpers/colour_from_scale.R")
+source("./helpers/vec_pal_colours.R")
 
 ## load vertex to face colour conversion
 source("./helpers/vertex_to_face_colours.R")
@@ -100,7 +100,7 @@ palette_function <-
 
 ## Generate colours
 vertex_colour_data <-
-  colour_from_scale(colouring_raster_data, palette_function,
+  vec_pal_colours(colouring_raster_data, palette_function,
                     n_colours, zero_index = TRUE)
 
 face_colours <-
@@ -169,7 +169,7 @@ aframe_scene2$serve()
 aframe_scene2$stop()
 
 
-### Use a texture
+### Using a texture
 library(dismo)
 
 ## there are better ways to get imagery, but this is a good old faithful detault
@@ -205,32 +205,36 @@ uluru_tex_json <-
                        texture_file = texfile
                        )
 
-## VR test
+## write JSON file
+readr::write_file(uluru_tex_json, "./data/uluru_tex.json")
 
-uluru_tex <- a_in_mem_asset(data = list(uluru_tex_json, readr::read_file_raw(texfile)),
-                            src = "./uluru_tex.json",
-                            id = "uluru_tex",
-                            parts = "./data/uluru_satellite.png")
+## VR test
+## The JSON references the satellite png file so it needs to be included in 'parts'.
+uluru_tex <- a_asset(src = "./data/uluru_tex.json",
+                     id = "uluru_tex",
+                     parts = "./data/uluru_satellite.png")
+
+uluru_tex$get_asset_data()
 
 uluru <-
   a_json_model(src_asset = uluru_tex,
                mesh_smooth = FALSE,
-               scale = scale_factor*c(1,1,1),
-               position = c(0,0 + height_correction * scale_factor, -15),
+               scale = scale_factor * c(1, 1, 1),
+               position = c(0, 0 + height_correction * scale_factor, -15),
                rotation = c(-90, 180, 0))
 
-aframe_scene2 <-
+aframe_scene3 <-
   a_scene(template = "empty",
           title = "Uluru Mesh",
           description = "An A-Frame scene of Uluru",
           children = list(uluru, sky, a_pc_control_camera()))
 
-aframe_scene2$serve()
+aframe_scene3$serve()
 
 ## don't forget to:
-aframe_scene2$stop()
+aframe_scene3$stop()
 
-## rayshader
+## Bonus: rayshader
 ## devtools::install_github("diligently/rayshader")
 library(rayshader)
 
@@ -263,3 +267,14 @@ uluru_tex <- a_in_mem_asset(data = list(uluru_tex_json, readr::read_file_raw(tex
                             src = "./uluru_tex.json",
                             id = "uluru_tex",
                             parts = "./uluru_shade.png")
+
+aframe_scene4 <-
+  a_scene(template = "empty",
+          title = "Uluru Mesh",
+          description = "An A-Frame scene of Uluru",
+          children = list(uluru, sky, a_pc_control_camera()))
+
+aframe_scene4$serve()
+
+## don't forget to:
+aframe_scene4$stop()
