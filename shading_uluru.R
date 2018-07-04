@@ -1,4 +1,3 @@
-
 ################################################################################
 
 ## Prerequisite code
@@ -39,7 +38,8 @@ uluru_bbox_mpoly <-
 ### Crop raster and sanity check
 nt_raster_cropped <-
   nt_raster %>%
-  crop(st_bbox(uluru_bbox_mpoly)[c("xmin","xmax","ymin","ymax")])
+  crop(st_bbox(uluru_bbox_mpoly)[c("xmin", "xmax",
+                                   "ymin", "ymax")])
 
 plot(nt_raster_cropped) ## looks good!
 
@@ -49,17 +49,17 @@ uluru_bbox_trimesh <-
 
 ### Add elevation to trimesh
 ul_extent_elev <-
-  raster::extract(nt_raster, uluru_bbox_trimesh$P[,1:2])
+  raster::extract(nt_raster, uluru_bbox_trimesh$P[, 1:2])
 uluru_bbox_trimesh$P <-
   cbind(uluru_bbox_trimesh$P, ul_extent_elev)
 
 ### Calculating height correction factor for VR, discussed in previous post.
 ## We need to correct the height based on ground height.
 ## In this case we'll find ground height from the  highest corner of the bounding box.
-ground_height <- 
+ground_height <-
   max(raster::extract(nt_raster, uluru_bbox_mpoly[[1]][[1]][[1]], nrow = 1))
 
-height_correction <- -1 * (ground_height - mean(uluru_bbox_trimesh$P[,3]))
+height_correction <- -1 * (ground_height - mean(uluru_bbox_trimesh$P[, 3]))
 ## We're reversing the correction that would have been applied to the
 ## ground height by centering.
 
@@ -119,7 +119,7 @@ write_file(mesh_json, "./data/uluru_mesh.json")
 
 ## Render in VR
 ## Bigger than our previous 'puddle':
-scale_factor <- 0.01 
+scale_factor <- 0.01
 
 uluru_json <-
   a_asset(id = "uluru",
@@ -171,6 +171,7 @@ aframe_scene2$stop()
 
 ### Using a texture
 library(dismo)
+library(fs)
 
 ## there are better ways to get imagery, but this is a good old faithful detault
 im <- dismo::gmap(nt_raster_cropped, type = "satellite", scale = 2)
@@ -198,11 +199,12 @@ texfile <- "./data/uluru_satellite.png"
 rgdal::writeGDAL(as(imrgb, "SpatialGridDataFrame"), texfile, driver = "PNG")
 
 ## generate JSON containing texture
+## pass just the name of the texture file so it will look in the same directory
 uluru_tex_json <-
   trimesh_to_threejson(vertices = uluru_bbox_trimesh$P,
                        face_vertices = uluru_bbox_trimesh$T,
                        vertex_uvs = xyim,
-                       texture_file = texfile
+                       texture_file = fs::path_file(texfile)
                        )
 
 ## write JSON file
@@ -218,7 +220,7 @@ uluru_tex$get_asset_data()
 
 uluru <-
   a_json_model(src_asset = uluru_tex,
-               mesh_smooth = FALSE,
+               mesh_smooth = TRUE,
                scale = scale_factor * c(1, 1, 1),
                position = c(0, 0 + height_correction * scale_factor, -15),
                rotation = c(-90, 180, 0))
@@ -245,7 +247,7 @@ elmat %>%
   sphere_shade(sunangle = 45, texture = "imhof2") %>%
   add_shadow(ray_shade(elmat,sunangle = 45), max_darken = 0.4) %>%
   add_shadow(ambient_shade(elmat), max_darken = 0.4) %>%
-  write_png(filename = "./uluru_shade.png")
+  write_png(filename = "./data/uluru_shade.png")
 
 range_scale <- function(a) (a - min(a, na.rm=TRUE)) / diff(range(a, na.rm=TRUE))
 
@@ -253,14 +255,13 @@ norm_vertex_coords <-
   cbind(range_scale(uluru_bbox_trimesh$P[,1]),
         range_scale(uluru_bbox_trimesh$P[,2]))
 
-texfile = "./uluru_shade.png"
+texfile = "./data/uluru_shade.png"
 
 uluru_tex_json <-
   trimesh_to_threejson(vertices = uluru_bbox_trimesh$P,
                        face_vertices = uluru_bbox_trimesh$T,
                        vertex_uvs = norm_vertex_coords,
-                       texture_file = texfile
-                       )
+                       texture_file = fs::path_file(texfile))
 
 
 uluru_tex <- a_in_mem_asset(data = list(uluru_tex_json, readr::read_file_raw(texfile)),
