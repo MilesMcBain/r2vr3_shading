@@ -3,14 +3,14 @@
 ##' Given a vector of numeric values, return a palette of size `n_cols`` and a
 ##' set of indexes into the palette of size equal to the numeric vector.
 ##'
-##' @title colour_from_scale
+##' @title vec_pal_colours
 ##' @param vec a numeric of vector of values to generate palette indexes for
 ##' @param palette_fn a function that will produce a vector of integer colour code
 ##'   strings, when called: `palette_fn(n_cols)`
 ##' @param n_cols the number of colours to generate using the `palette_fn`.
 ##' @param zero_index should the colour indexes begin at 0, for use with 0 indexed languages like Javascript?
 ##' @return A list contain two named vectors: 'colours' and 'indexes'.
-colour_from_scale <- function(vec, palette_fn, n_cols, zero_index = FALSE){
+vec_pal_colours <- function(vec, palette_fn, n_cols, zero_index = FALSE){
   palette <- palette_fn(n_cols) %>%
     gsub(pattern = "#", replacement = "0x", x = .) %>%
     as.numeric()
