@@ -199,7 +199,8 @@ texfile <- "./data/uluru_satellite.png"
 rgdal::writeGDAL(as(imrgb, "SpatialGridDataFrame"), texfile, driver = "PNG")
 
 ## generate JSON containing texture
-## pass just the name of the texture file so it will look in the same directory
+## pass just the name of the texture file so rendering process will look in the
+## same directory as JSON model
 uluru_tex_json <-
   trimesh_to_threejson(vertices = uluru_bbox_trimesh$P,
                        face_vertices = uluru_bbox_trimesh$T,
@@ -216,8 +217,6 @@ uluru_tex <- a_asset(src = "./data/uluru_tex.json",
                      id = "uluru_tex",
                      parts = "./data/uluru_satellite.png")
 
-uluru_tex$get_asset_data()
-
 uluru <-
   a_json_model(src_asset = uluru_tex,
                mesh_smooth = TRUE,
@@ -229,7 +228,7 @@ aframe_scene3 <-
   a_scene(template = "empty",
           title = "Uluru Mesh",
           description = "An A-Frame scene of Uluru",
-          children = list(uluru, sky, a_pc_control_camera()))
+          children = list(uluru, sky, controls))
 
 aframe_scene3$serve()
 
