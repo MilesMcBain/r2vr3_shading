@@ -126,22 +126,22 @@ uluru_json <-
           src = "./data/uluru_mesh.json")
 
 uluru <-
-  a_json_model(src_asset = uluru_json,
+  a_json_model(src = uluru_json,
                scale = scale_factor * c(1, 1, 1),
                position = c(0, 0 + height_correction * scale_factor, -15),
                rotation = c(-90, 180, 0)
                )
 
-sky <- a_entity(tag = "sky",
+sky <- a_entity(.tag = "sky",
                 color = "#000000")
 
 controls <- a_pc_control_camera()
 
 aframe_scene <-
-  a_scene(template = "empty",
-          title = "Uluru Mesh",
-          description = "An A-Frame scene of Uluru",
-          children = list(uluru, sky, controls))
+  a_scene(.template = "empty",
+          .title = "Uluru Mesh",
+          .description = "An A-Frame scene of Uluru",
+          .children = list(uluru, sky, controls))
 
 aframe_scene$serve()
 browseURL("http://127.0.0.1:8080")
@@ -151,17 +151,17 @@ aframe_scene$stop()
 
 ## Smooth using vertex normals
 uluru_smooth <-
-  a_json_model(src_asset = uluru_json,
+  a_json_model(src = uluru_json,
                mesh_smooth = TRUE,
                scale = scale_factor * c(1, 1, 1),
                position = c(0, 0 + height_correction * scale_factor, -15),
                rotation = c(-90, 180, 0))
 
 aframe_scene2 <-
-  a_scene(template = "empty",
-          title = "Uluru Mesh",
-          description = "An A-Frame scene of Uluru",
-          children = list(uluru_smooth, sky, controls))
+  a_scene(.template = "empty",
+          .title = "Uluru Mesh",
+          .description = "An A-Frame scene of Uluru",
+          .children = list(uluru_smooth, sky, controls))
 
 aframe_scene2$serve()
 
@@ -175,6 +175,24 @@ library(fs)
 
 ## there are better ways to get imagery, but this is a good old faithful detault
 im <- dismo::gmap(nt_raster_cropped, type = "satellite", scale = 2)
+
+## Look at using mapbox instead of dismo
+library(slippymath)
+library(curl)
+library(glue)
+
+## Try to get a tile from mapbox as a test
+lat <- uluru_bbox[c("xmin")]
+lon <- uluru_bbox[c("ymin")]
+zoom <- 11
+## Zoom 11 should fit Uluru in 1 tile
+
+tile_nums <- latlon_to_tilenum(lat, lon, zoom)
+x <- tile_nums$x
+api_key <- Sys.getenv("MAPBOX_API_KEY")
+
+mapbox_url <- glue("https://api.mapbox.com/v4/mapbox.satellite/{zoom}/{tile_nums$x}/{tile_nums$y}.jpg90?access_token={api_key}")
+
 
 ## so this is a bit head-stretching, because multiple coordinate systems in play
 
